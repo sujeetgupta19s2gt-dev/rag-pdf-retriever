@@ -15,5 +15,4 @@ __pycache__/
 # Environment / IDE files
 .venv/
 env/
-.env
 .DS_Store
