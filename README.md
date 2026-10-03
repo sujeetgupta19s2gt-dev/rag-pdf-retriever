@@ -1,16 +1,16 @@
 # RAG PDF & Text Retriever Pipeline
 
-A modular Python-based Retrieval-Augmented Generation (RAG) backend and similarity search engine built using LangChain, Sentence Transformers, and ChromaDB[cite: 1, 2, 3, 4]. This project implements the core retrieval architecture required to feed accurate, context-rich information to Large Language Models (LLMs)[cite: 1, 2, 3, 4].
+A modular Python-based Retrieval-Augmented Generation (RAG) backend and similarity search engine built using LangChain, Sentence Transformers, ChromaDB, and Groq LLMs. This project implements the core retrieval and generation architecture required to feed accurate, context-rich information to Large Language Models (LLMs).
 
 ---
 
 ## 🏗️ Architecture & Pipeline Overview
 
-The project follows a standard RAG pipeline architecture consisting of three main phases[cite: 1, 2, 3, 4]:
-
-1. **Data Ingestion & Chunking**: Loads raw documents (PDFs and Text files), extracts text content alongside rich metadata, and splits them into manageable chunks using `RecursiveCharacterTextSplitter`[cite: 1, 3, 4].
-2. **Embedding & Vector Storage**: Generates dense vector representations using the `all-MiniLM-L6-v2` sentence transformer model and stores them persistently using **ChromaDB**.
-3. **Retrieval Pipeline**: Accepts natural language user queries, computes similarity scores, and filters/ranks the most relevant document chunks to serve as context.
+The project follows a standard RAG pipeline architecture consisting of four main phases:
+* **Data Ingestion & Chunking**: Loads raw documents (PDFs and Text files), extracts text content alongside rich metadata, and splits them into manageable chunks using `RecursiveCharacterTextSplitter`.
+* **Embedding & Vector Storage**: Generates dense vector representations using the `all-MiniLM-L6-v2` sentence transformer model and stores them persistently using ChromaDB.
+* **Retrieval Pipeline**: Accepts natural language user queries, computes similarity scores, and filters/ranks the most relevant document chunks to serve as context.
+* **Generation Pipeline**: Combines the retrieved context with the user query into a structured prompt, feeding it to a high-performance LLM via the Groq API to generate accurate answers.
 
 ---
 
@@ -21,68 +21,78 @@ rag-pdf-retriever/
 │
 ├── data/
 │   ├── pdfs/               # Place your input PDF documents here
+│   ├── vector_store/       # Local ChromaDB persistent database files (ignored by git)
 │   └── Python.txt          # Sample text data file
 │
-├── main.py                 # Core Python script containing classes and pipeline logic
-├── requirements.txt        # Project dependencies
+├── .env                    # Secure environment file for API keys (ignored by git)
+├── .gitignore              # Git ignore rules for sensitive and cache files
+├── main.py (or Notebook)   # Core Python script / Jupyter notebook containing logic
 └── README.md               # Project documentation
 ⚙️ Prerequisites & Installation
-Ensure you have Python installed, then install the required dependencies:
+Ensure you have Python installed, then clone or set up your repository and install the required dependencies:
 
 Bash
-pip install -r requirements.txt
-Dependencies List (requirements.txt)
-langchain
+pip install langchain langchain-core langchain-community langchain-text-splitters pypdf pymupdf sentence-transformers chromadb scikit-learn python-dotenv langchain-groq ipywidgets
+🔐 Environment Setup (Security Best Practice)
+To protect your API keys from public exposure, this project uses a .env file rather than hardcoded credentials.
 
-langchain-core
+Create a file named .env in the root folder of your project.
 
-langchain-community
+Add your Groq API key inside the file:
 
-langchain-text-splitters
-
-pypdf
-
-pymupdf
-
-sentence-transformers
-
-chromadb
-
-scikit-learn
-
-ipywidgets
+Code snippet
+GROQ_API_KEY=your_actual_groq_api_key_here
+Ensure .env is included in your .gitignore file so it never gets pushed to GitHub.
 
 🚀 How It Works (Code Modules)
 1. Ingestion Pipeline
 Loads documents from local directories and parses content:
 
-Text Loader: Parses plain text files like Python.txt.   
-JPG
+Text Loader: Parses plain text files like Python.txt.
 
-PyPDF Loader: Automatically iterates through the data/pdfs/ folder, extracting text and page metadata page-by-page.   
-JPG
+PyPDF Loader: Automatically iterates through the data/pdfs/ folder, extracting text and page metadata page-by-page.
 
 2. Chunking
 Breaks down large documents into smaller chunks to optimize embedding quality and stay within token windows:
 
 Python
 text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=500, chunk_overlap=50
+    chunk_size=500, 
+    chunk_overlap=50
 )
+chunks = text_splitter.split_documents(all_pdf_documents)
 3. Embedding Manager (EmbeddingManager)
-Encodes text chunks into 384-dimensional dense vectors using Hugging Face's all-MiniLM-L6-v2 model[cite: 3, 4].
+Encodes text chunks into 384-dimensional dense vectors using Hugging Face's all-MiniLM-L6-v2 model.
 
 4. Vector Store Manager (VectorStoreManager)
-Handles local persistent storage using ChromaDB, ensuring your embedded documents are saved to disk under data/vector_store.   
-JPG
+Handles local persistent storage using ChromaDB, ensuring your embedded documents are saved to disk under data/vector_store.
 
 5. Retrieval Engine (RAGRetriever)
-Queries the vector database based on semantic similarity and calculates scores to return the top relevant context segments[cite: 4]:
+Queries the vector database based on semantic similarity, converts distances to similarity scores, and returns the top relevant context segments:
 
 Python
 rag_retriever = RAGRetriever(embedding_manager, vector_store)
-results = rag_retriever.retrieve("Your query here", top_k=5)
+results = rag_retriever.retrieve("What is RAG?", top_k=3)
+6. LLM Integration (Groq & LangChain)
+Loads credentials securely using python-dotenv and integrates with Groq's high-speed inference engine to generate context-grounded responses:
+
+Python
+import os
+from dotenv import load_dotenv
+from langchain_groq import ChatGroq
+
+load_dotenv()
+api_key = os.getenv("GROQ_API_KEY")
+
+llm = ChatGroq(
+    groq_api_key=api_key,
+    model="qwen/qwen2.5-7b-instruct",
+    temperature=0,
+    max_tokens=1024
+)
 🛠️ Future Enhancements
-[ ] Integrate an LLM (e.g., OpenAI, Groq, or Local Llama) to handle the Generation Pipeline step.
+[x] Integrate an LLM (Groq API) to handle the Generation Pipeline step.
 
 [ ] Build a simple Streamlit or Gradio UI for interactive querying.
+
+[ ] Add automatic source citation (displaying filenames and page numbers) directly in LLM responses.
